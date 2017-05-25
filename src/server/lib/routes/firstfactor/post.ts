@@ -1,0 +1,65 @@
+
+import exceptions = require("../../Exceptions");
+import objectPath = require("object-path");
+import BluebirdPromise = require("bluebird");
+import express = require("express");
+import AccessController from "../../access_control/AccessController";
+import AuthenticationRegulator from "../../AuthenticationRegulator";
+import { LdapClient } from "../../LdapClient";
+import Endpoint = require("../../../endpoints");
+import ErrorReplies = require("../../ErrorReplies");
+
+export default function (req: express.Request, res: express.Response): BluebirdPromise<void> {
+    const username: string = req.body.username;
+    const password: string = req.body.password;
+
+    const logger = req.app.get("logger");
+    const ldap: LdapClient = req.app.get("ldap");
+    const config = req.app.get("config");
+
+    if (!username || !password) {
+        const err = new Error("No username or password");
+        ErrorReplies.replyWithError401(res, logger)(err);
+        return BluebirdPromise.reject(err);
+    }
+
+    const regulator: AuthenticationRegulator = req.app.get("authentication regulator");
+    const accessController: AccessController = req.app.get("access controller");
+
+    logger.info("1st factor: Starting authentication of user \"%s\"", username);
+    logger.debug("1st factor: Start bind operation against LDAP");
+    logger.debug("1st factor: username=%s", username);
+
+    regulator.regulate(username)
+        .then(function () {
+            return ldap.bind(username, password);
+        })
+        .then(function () {
+            objectPath.set(req, "session.auth_session.userid", username);
+            objectPath.set(req, "session.auth_session.first_factor", true);
+            logger.info("1st factor: LDAP binding successful");
+            logger.debug("1st factor: Retrieve email from LDAP");
+            return BluebirdPromise.join(ldap.get_emails(username), ldap.get_groups(username));
+        })
+        .then(function (data: [string[], string[]]) {
+            const emails: string[] = data[0];
+            const groups: string[] = data[1];
+
+            if (!emails && emails.length <= 0) throw new Error("No email found");
+            logger.debug("1st factor: Retrieved email are %s", emails);
+            objectPath.set(req, "session.auth_session.email", emails[0]);
+            objectPath.set(req, "session.auth_session.groups", groups);
+
+            regulator.mark(username, true);
+            logger.debug("1st factor: Redirect to  %s", Endpoint.SECOND_FACTOR_GET);
+            res.redirect(Endpoint.SECOND_FACTOR_GET);
+        })
+        .catch(exceptions.LdapSearchError, ErrorReplies.replyWithError500(res, logger))
+        .catch(exceptions.LdapBindError, function (err: Error) {
+            regulator.mark(username, false);
+            ErrorReplies.replyWithError401(res, logger)(err);
+        })
+        .catch(exceptions.AuthenticationRegulationError, ErrorReplies.replyWithError403(res, logger))
+        .catch(exceptions.DomainAccessDenied, ErrorReplies.replyWithError401(res, logger))
+        .catch(ErrorReplies.replyWithError500(res, logger));
+}
