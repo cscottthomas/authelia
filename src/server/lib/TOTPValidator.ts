@@ -4,7 +4,7 @@ import BluebirdPromise = require("bluebird");
 
 const TOTP_ENCODING = "base32";
 
-export default class TOTPValidator {
+export class TOTPValidator {
   private speakeasy: Speakeasy;
 
   constructor(speakeasy: Speakeasy) {

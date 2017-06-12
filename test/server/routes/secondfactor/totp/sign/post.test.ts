@@ -10,6 +10,7 @@ import SignPost = require("../../../../../../src/server/lib/routes/secondfactor/
 import ExpressMock = require("../../../../mocks/express");
 import UserDataStoreMock = require("../../../../mocks/UserDataStore");
 import TOTPValidatorMock = require("../../../../mocks/TOTPValidator");
+import ServerVariablesMock = require("../../../../mocks/ServerVariablesMock");
 
 describe("test totp route", function () {
   let req: ExpressMock.RequestMock;
@@ -21,7 +22,6 @@ describe("test totp route", function () {
     const app_get = sinon.stub();
     req = {
       app: {
-        get: app_get
       },
       body: {
         token: "abc"
@@ -34,6 +34,7 @@ describe("test totp route", function () {
         }
       }
     };
+    const mocks = ServerVariablesMock.mock(req.app);
     res = ExpressMock.ResponseMock();
 
     const config = { totp_secret: "secret" };
@@ -49,10 +50,10 @@ describe("test totp route", function () {
     };
     userDataStore.get_totp_secret.returns(BluebirdPromise.resolve(doc));
 
-    app_get.withArgs("logger").returns(winston);
-    app_get.withArgs("totp validator").returns(totpValidator);
-    app_get.withArgs("config").returns(config);
-    app_get.withArgs("user data store").returns(userDataStore);
+    mocks.logger = winston;
+    mocks.totpValidator = totpValidator;
+    mocks.config = config;
+    mocks.userDataStore = userDataStore;
   });
 
 

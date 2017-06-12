@@ -1,5 +1,6 @@
 
 import sinon = require("sinon");
+import jquery = require("jquery");
 
 
 export interface JQueryMock extends sinon.SinonStub {

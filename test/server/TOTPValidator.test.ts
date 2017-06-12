@@ -1,5 +1,5 @@
 
-import TOTPValidator from "../../src/server/lib/TOTPValidator";
+import { TOTPValidator } from "../../src/server/lib/TOTPValidator";
 import sinon = require("sinon");
 import Promise = require("bluebird");
 import SpeakeasyMock = require("./mocks/speakeasy");

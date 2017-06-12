@@ -1,7 +1,7 @@
 
 import assert = require("assert");
 import winston = require("winston");
-import AccessController from "../../../src/server/lib/access_control/AccessController";
+import { AccessController } from "../../../src/server/lib/access_control/AccessController";
 import { ACLConfiguration } from "../../../src/types/Configuration";
 
 describe("test access control manager", function () {

@@ -3,14 +3,16 @@ import express = require("express");
 import BluebirdPromise = require("bluebird");
 import objectPath = require("object-path");
 import exceptions = require("../../../Exceptions");
+import ServerVariables = require("../../../ServerVariables");
 
 import Constants = require("./../constants");
 
 export default function (req: express.Request, res: express.Response) {
-    const logger = req.app.get("logger");
-    const ldap = req.app.get("ldap");
-    const new_password = objectPath.get(req, "body.password");
-    const userid = objectPath.get(req, "session.auth_session.identity_check.userid");
+    const logger = ServerVariables.getLogger(req.app);
+    const ldap = ServerVariables.getLdapClient(req.app);
+
+    const new_password = objectPath.get<express.Request, string>(req, "body.password");
+    const userid = objectPath.get<express.Request, string>(req, "session.auth_session.identity_check.userid");
 
     const challenge = objectPath.get(req, "session.auth_session.identity_check.challenge");
     if (challenge != Constants.CHALLENGE) {

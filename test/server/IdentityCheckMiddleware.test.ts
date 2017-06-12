@@ -12,6 +12,7 @@ import ExpressMock = require("./mocks/express");
 import UserDataStoreMock = require("./mocks/UserDataStore");
 import NotifierMock = require("./mocks/Notifier");
 import IdentityValidatorMock = require("./mocks/IdentityValidator");
+import ServerVariablesMock = require("./mocks/ServerVariablesMock");
 
 
 describe("test identity check process", function () {
@@ -45,10 +46,10 @@ describe("test identity check process", function () {
 
     req.query = {};
     req.app = {};
-    req.app.get = sinon.stub();
-    req.app.get.withArgs("logger").returns(winston);
-    req.app.get.withArgs("user data store").returns(userDataStore);
-    req.app.get.withArgs("notifier").returns(notifier);
+    const mocks = ServerVariablesMock.mock(req.app);
+    mocks.logger = winston;
+    mocks.userDataStore = userDataStore;
+    mocks.notifier = notifier;
 
     app = express();
     app_get = sinon.stub(app, "get");

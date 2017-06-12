@@ -8,17 +8,18 @@ import RegistrationHandler from "../../../../../../src/server/lib/routes/secondf
 
 import ExpressMock = require("../../../../mocks/express");
 import UserDataStoreMock = require("../../../../mocks/UserDataStore");
+import ServerVariablesMock = require("../../../../mocks/ServerVariablesMock");
 
 describe("test register handler", function () {
   let req: ExpressMock.RequestMock;
   let res: ExpressMock.ResponseMock;
-  let user_data_store: UserDataStoreMock.UserDataStore;
+  let userDataStore: UserDataStoreMock.UserDataStore;
 
   beforeEach(function () {
     req = ExpressMock.RequestMock;
     req.app = {};
-    req.app.get = sinon.stub();
-    req.app.get.withArgs("logger").returns(winston);
+    const mocks = ServerVariablesMock.mock(req.app);
+    mocks.logger = winston;
     req.session = {};
     req.session.auth_session = {};
     req.session.auth_session.userid = "user";
@@ -32,12 +33,12 @@ describe("test register handler", function () {
       inMemoryOnly: true
     };
 
-    user_data_store = UserDataStoreMock.UserDataStore();
-    user_data_store.set_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
-    user_data_store.get_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
-    user_data_store.issue_identity_check_token = sinon.stub().returns(BluebirdPromise.resolve({}));
-    user_data_store.consume_identity_check_token = sinon.stub().returns(BluebirdPromise.resolve({}));
-    req.app.get.withArgs("user data store").returns(user_data_store);
+    userDataStore = UserDataStoreMock.UserDataStore();
+    userDataStore.set_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
+    userDataStore.get_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
+    userDataStore.issue_identity_check_token = sinon.stub().returns(BluebirdPromise.resolve({}));
+    userDataStore.consume_identity_check_token = sinon.stub().returns(BluebirdPromise.resolve({}));
+    mocks.userDataStore = userDataStore;
 
     res = ExpressMock.ResponseMock();
     res.send = sinon.spy();

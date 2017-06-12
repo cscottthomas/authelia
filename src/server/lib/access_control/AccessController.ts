@@ -3,7 +3,7 @@ import { ACLConfiguration } from "../../../types/Configuration";
 import PatternBuilder from "./PatternBuilder";
 import { Winston } from "../../../types/Dependencies";
 
-export default class AccessController {
+export class AccessController {
     private logger: Winston;
     private patternBuilder: PatternBuilder;
 

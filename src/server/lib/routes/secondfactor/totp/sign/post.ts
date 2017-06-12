@@ -8,19 +8,20 @@ import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import Endpoints = require("../../../../../endpoints");
 import redirect from "../../redirect";
 import ErrorReplies = require("../../../../ErrorReplies");
+import ServerVariables = require("./../../../../ServerVariables");
 
 const UNAUTHORIZED_MESSAGE = "Unauthorized access";
 
 export default FirstFactorBlocker(handler);
 
 export function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
-  const logger = req.app.get("logger");
-  const userid = objectPath.get(req, "session.auth_session.userid");
+  const logger = ServerVariables.getLogger(req.app);
+  const userid = objectPath.get<express.Request, string>(req, "session.auth_session.userid");
   logger.info("POST 2ndfactor totp: Initiate TOTP validation for user %s", userid);
 
   const token = req.body.token;
-  const totpValidator = req.app.get("totp validator");
-  const userDataStore = req.app.get("user data store");
+  const totpValidator = ServerVariables.getTOTPValidator(req.app);
+  const userDataStore = ServerVariables.getUserDataStore(req.app);
 
   logger.debug("POST 2ndfactor totp: Fetching secret for user %s", userid);
   return userDataStore.get_totp_secret(userid)

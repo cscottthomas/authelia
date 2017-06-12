@@ -3,16 +3,17 @@ import { Winston } from "winston";
 import objectPath = require("object-path");
 import BluebirdPromise = require("bluebird");
 import express = require("express");
-import AccessController from "../../access_control/AccessController";
+import { AccessController } from "../../access_control/AccessController";
 import exceptions = require("../../Exceptions");
 import winston = require("winston");
 import SessionKeys = require("../../SessionKeys");
 import AuthenticationValidator = require("../../AuthenticationValidator");
 import ErrorReplies = require("../../ErrorReplies");
+import ServerVariables = require("../../ServerVariables");
 
 function verify_filter(req: express.Request, res: express.Response) {
-  const logger: typeof winston = req.app.get("logger");
-  const accessController: AccessController = req.app.get("access controller");
+  const logger = ServerVariables.getLogger(req.app);
+  const accessController = ServerVariables.getAccessController(req.app);
 
   logger.debug("Verify: headers are %s", JSON.stringify(req.headers));
 
@@ -39,7 +40,7 @@ function verify_filter(req: express.Request, res: express.Response) {
 }
 
 export default function (req: express.Request, res: express.Response) {
-  const logger: Winston = req.app.get("logger");
+  const logger = ServerVariables.getLogger(req.app);
   verify_filter(req, res)
     .then(function () {
       res.status(204);

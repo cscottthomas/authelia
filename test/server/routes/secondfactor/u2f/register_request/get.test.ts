@@ -8,18 +8,20 @@ import winston = require("winston");
 import ExpressMock = require("../../../../mocks/express");
 import UserDataStoreMock = require("../../../../mocks/UserDataStore");
 import U2FMock = require("../../../../mocks/u2f");
+import ServerVariablesMock = require("../../../../mocks/ServerVariablesMock");
 import U2f = require("u2f");
 
 describe("test u2f routes: register_request", function () {
     let req: ExpressMock.RequestMock;
     let res: ExpressMock.ResponseMock;
     let userDataStore: UserDataStoreMock.UserDataStore;
+    let mocks: ServerVariablesMock.ServerVariablesMock;
 
     beforeEach(function () {
         req = ExpressMock.RequestMock();
         req.app = {};
-        req.app.get = sinon.stub();
-        req.app.get.withArgs("logger").returns(winston);
+        mocks = ServerVariablesMock.mock(req.app);
+        mocks.logger = winston;
         req.session = {};
         req.session.auth_session = {};
         req.session.auth_session.userid = "user";
@@ -38,7 +40,7 @@ describe("test u2f routes: register_request", function () {
         userDataStore = UserDataStoreMock.UserDataStore();
         userDataStore.set_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
         userDataStore.get_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
-        req.app.get.withArgs("user data store").returns(userDataStore);
+        mocks.userDataStore = userDataStore;
 
         res = ExpressMock.ResponseMock();
         res.send = sinon.spy();
@@ -55,7 +57,7 @@ describe("test u2f routes: register_request", function () {
             const u2f_mock = U2FMock.U2FMock();
             u2f_mock.request.returns(BluebirdPromise.resolve(expectedRequest));
 
-            req.app.get.withArgs("u2f").returns(u2f_mock);
+            mocks.u2f = u2f_mock;
             return U2FRegisterRequestGet.default(req as any, res as any)
                 .then(function () {
                     assert.deepEqual(expectedRequest, res.json.getCall(0).args[0]);
@@ -71,7 +73,7 @@ describe("test u2f routes: register_request", function () {
             const u2f_mock = U2FMock.U2FMock();
             u2f_mock.request.returns(BluebirdPromise.reject("Internal error"));
 
-            req.app.get.withArgs("u2f").returns(u2f_mock);
+            mocks.u2f = u2f_mock;
             U2FRegisterRequestGet.default(req as any, res as any);
         });
 

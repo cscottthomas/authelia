@@ -9,6 +9,7 @@ import BluebirdPromise = require("bluebird");
 import ExpressMock = require("../../mocks/express");
 import { LdapClientMock } from "../../mocks/LdapClient";
 import { UserDataStore } from "../../mocks/UserDataStore";
+import ServerVariablesMock = require("../../mocks/ServerVariablesMock");
 
 describe("test reset password route", function () {
   let req: ExpressMock.RequestMock;
@@ -42,12 +43,13 @@ describe("test reset password route", function () {
       inMemoryOnly: true
     };
 
+    const mocks = ServerVariablesMock.mock(req.app);
     user_data_store = UserDataStore();
     user_data_store.set_u2f_meta.returns(BluebirdPromise.resolve({}));
     user_data_store.get_u2f_meta.returns(BluebirdPromise.resolve({}));
     user_data_store.issue_identity_check_token.returns(BluebirdPromise.resolve({}));
     user_data_store.consume_identity_check_token.returns(BluebirdPromise.resolve({}));
-    req.app.get.withArgs("user data store").returns(user_data_store);
+    mocks.userDataStore = user_data_store;
 
 
     configuration = {
@@ -57,11 +59,11 @@ describe("test reset password route", function () {
       }
     };
 
-    req.app.get.withArgs("logger").returns(winston);
-    req.app.get.withArgs("config").returns(configuration);
+    mocks.logger = winston;
+    mocks.config = configuration;
 
     ldap_client = LdapClientMock();
-    req.app.get.withArgs("ldap").returns(ldap_client);
+    mocks.ldap = ldap_client;
 
     res = ExpressMock.ResponseMock();
   });

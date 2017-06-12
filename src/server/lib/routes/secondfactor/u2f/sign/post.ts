@@ -10,13 +10,14 @@ import exceptions = require("../../../../Exceptions");
 import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import redirect from "../../redirect";
 import ErrorReplies = require("../../../../ErrorReplies");
+import ServerVariables = require("../../../../ServerVariables");
 
 export default FirstFactorBlocker(handler);
 
 
 export function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
-    const logger: Winston = req.app.get("logger");
-    const userDataStore: UserDataStore = req.app.get("user data store");
+    const logger = ServerVariables.getLogger(req.app);
+    const userDataStore = ServerVariables.getUserDataStore(req.app);
 
     if (!objectPath.has(req, "session.auth_session.sign_request")) {
         const err = new Error("No sign request");
@@ -29,7 +30,7 @@ export function handler(req: express.Request, res: express.Response): BluebirdPr
     return userDataStore.get_u2f_meta(userid, appid)
         .then(function (doc: U2FRegistrationDocument): BluebirdPromise<U2f.SignatureResult | U2f.Error> {
             const appid = u2f_common.extract_app_id(req);
-            const u2f: typeof U2f = req.app.get("u2f");
+            const u2f = ServerVariables.getU2F(req.app);
             const signRequest: U2f.Request = req.session.auth_session.sign_request;
             const signData: U2f.SignatureData = req.body;
             logger.info("U2F sign: Finish authentication");

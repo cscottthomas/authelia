@@ -1,5 +1,5 @@
 
-import AuthenticationRegulator from "../../src/server/lib/AuthenticationRegulator";
+import { AuthenticationRegulator } from "../../src/server/lib/AuthenticationRegulator";
 import UserDataStore from "../../src/server/lib/UserDataStore";
 import MockDate = require("mockdate");
 import exceptions = require("../../src/server/lib/Exceptions");

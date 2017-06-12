@@ -7,6 +7,7 @@ import winston = require("winston");
 
 import ExpressMock = require("../../../../mocks/express");
 import UserDataStoreMock = require("../../../../mocks/UserDataStore");
+import ServerVariablesMock = require("../../../../mocks/ServerVariablesMock");
 import U2FMock = require("../../../../mocks/u2f");
 import U2f = require("u2f");
 
@@ -14,12 +15,15 @@ describe("test u2f routes: sign", function () {
     let req: ExpressMock.RequestMock;
     let res: ExpressMock.ResponseMock;
     let userDataStore: UserDataStoreMock.UserDataStore;
+    let mocks: ServerVariablesMock.ServerVariablesMock;
 
     beforeEach(function () {
         req = ExpressMock.RequestMock();
         req.app = {};
-        req.app.get = sinon.stub();
-        req.app.get.withArgs("logger").returns(winston);
+
+        mocks = ServerVariablesMock.mock(req.app);
+        mocks.logger = winston;
+
         req.session = {};
         req.session.auth_session = {};
         req.session.auth_session.userid = "user";
@@ -38,7 +42,7 @@ describe("test u2f routes: sign", function () {
         userDataStore = UserDataStoreMock.UserDataStore();
         userDataStore.set_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
         userDataStore.get_u2f_meta = sinon.stub().returns(BluebirdPromise.resolve({}));
-        req.app.get.withArgs("user data store").returns(userDataStore);
+        mocks.userDataStore = userDataStore;
 
         res = ExpressMock.ResponseMock();
         res.send = sinon.spy();
@@ -57,7 +61,7 @@ describe("test u2f routes: sign", function () {
             u2f_mock.checkSignature.returns(expectedStatus);
 
             req.session.auth_session.sign_request = {};
-            req.app.get.withArgs("u2f").returns(u2f_mock);
+            mocks.u2f = u2f_mock;
             return U2FSignPost.default(req as any, res as any)
                 .then(function () {
                     assert(req.session.auth_session.second_factor);
@@ -74,7 +78,7 @@ describe("test u2f routes: sign", function () {
             u2f_mock.checkSignature.returns({ errorCode: 500 });
 
             req.session.auth_session.sign_request = {};
-            req.app.get.withArgs("u2f").returns(u2f_mock);
+            mocks.u2f = u2f_mock;
             U2FSignPost.default(req as any, res as any);
         });
     });

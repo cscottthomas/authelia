@@ -10,13 +10,14 @@ import exceptions = require("../../../../Exceptions");
 import { SignMessage } from "./SignMessage";
 import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import ErrorReplies = require("../../../../ErrorReplies");
+import ServerVariables = require("../../../../ServerVariables");
 
 export default FirstFactorBlocker(handler);
 
 
 export function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
-    const logger: Winston = req.app.get("logger");
-    const userDataStore: UserDataStore = req.app.get("user data store");
+    const logger = ServerVariables.getLogger(req.app);
+    const userDataStore = ServerVariables.getUserDataStore(req.app);
 
     const userid = req.session.auth_session.userid;
     const appid = u2f_common.extract_app_id(req);
@@ -25,7 +26,7 @@ export function handler(req: express.Request, res: express.Response): BluebirdPr
             if (!doc)
                 return BluebirdPromise.reject(new exceptions.AccessDeniedError("No U2F registration found"));
 
-            const u2f: typeof U2f = req.app.get("u2f");
+            const u2f = ServerVariables.getU2F(req.app);
             const appId: string = u2f_common.extract_app_id(req);
             logger.info("U2F sign_request: Start authentication to app %s", appId);
             logger.debug("U2F sign_request: appId=%s, keyHandle=%s", appId, JSON.stringify(doc.keyHandle));

@@ -9,6 +9,7 @@ import U2f = require("u2f");
 import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import redirect from "../../redirect";
 import ErrorReplies = require("../../../../ErrorReplies");
+import ServerVariables = require("../../../../ServerVariables");
 
 
 export default FirstFactorBlocker(handler);
@@ -32,11 +33,11 @@ function handler(req: express.Request, res: express.Response): BluebirdPromise<v
     }
 
 
-    const userDataStore: UserDataStore = req.app.get("user data store");
-    const u2f: typeof U2f = req.app.get("u2f");
+    const userDataStore = ServerVariables.getUserDataStore(req.app);
+    const u2f = ServerVariables.getU2F(req.app);
     const userid: string = req.session.auth_session.userid;
-    const appid: string = u2f_common.extract_app_id(req);
-    const logger = req.app.get("logger");
+    const appid = u2f_common.extract_app_id(req);
+    const logger = ServerVariables.getLogger(req.app);
 
     const registrationResponse: U2f.RegistrationData = req.body;
 

@@ -8,11 +8,12 @@ import express = require("express");
 import U2f = require("u2f");
 import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import ErrorReplies = require("../../../../ErrorReplies");
+import ServerVariables = require("../../../../ServerVariables");
 
 export default FirstFactorBlocker(handler);
 
 function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
-    const logger = req.app.get("logger");
+    const logger = ServerVariables.getLogger(req.app);
     const challenge: string =
         objectPath.get<express.Request, string>(req, "session.auth_session.identity_check.challenge");
     if (challenge != "u2f-register") {
@@ -21,7 +22,7 @@ function handler(req: express.Request, res: express.Response): BluebirdPromise<v
         return;
     }
 
-    const u2f: typeof U2f = req.app.get("u2f");
+    const u2f = ServerVariables.getU2F(req.app);
     const appid: string = u2f_common.extract_app_id(req);
 
     logger.debug("U2F register_request: headers=%s", JSON.stringify(req.headers));

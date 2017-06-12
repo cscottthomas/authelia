@@ -35,7 +35,7 @@ import Error404Get = require("./routes/error/404/get");
 import Endpoints = require("../endpoints");
 
 export default class RestApi {
-  static setup(app: express.Application, userDataStore: UserDataStore, logger: Winston): void {
+  static setup(app: express.Application): void {
     app.get(Endpoints.FIRST_FACTOR_GET, FirstFactorGet.default);
     app.get(Endpoints.SECOND_FACTOR_GET, SecondFactorGet.default);
     app.get(Endpoints.LOGOUT_GET, LogoutGet.default);

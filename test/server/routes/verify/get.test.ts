@@ -9,6 +9,7 @@ import express = require("express");
 
 import ExpressMock = require("../../mocks/express");
 import AccessControllerMock = require("../../mocks/AccessController");
+import ServerVariablesMock = require("../../mocks/ServerVariablesMock");
 
 describe("test authentication token verification", function () {
   let req: ExpressMock.RequestMock;
@@ -23,10 +24,10 @@ describe("test authentication token verification", function () {
     res = ExpressMock.ResponseMock();
     req.headers = {};
     req.headers.host = "secret.example.com";
-    req.app.get = sinon.stub();
-    req.app.get.withArgs("config").returns({});
-    req.app.get.withArgs("logger").returns(winston);
-    req.app.get.withArgs("access controller").returns(accessController);
+    const mocks = ServerVariablesMock.mock(req.app);
+    mocks.config = {};
+    mocks.logger = winston;
+    mocks.accessController = accessController;
   });
 
   interface AuthenticationSession {

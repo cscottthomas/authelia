@@ -12,6 +12,7 @@ import AuthenticationRegulatorMock = require("../../mocks/AuthenticationRegulato
 import AccessControllerMock = require("../../mocks/AccessController");
 import { LdapClientMock } from "../../mocks/LdapClient";
 import ExpressMock = require("../../mocks/express");
+import ServerVariablesMock = require("../../mocks/ServerVariablesMock");
 
 describe("test the first factor validation route", function () {
   let req: ExpressMock.RequestMock;
@@ -43,16 +44,8 @@ describe("test the first factor validation route", function () {
     regulator.regulate.returns(BluebirdPromise.resolve());
     regulator.mark.returns(BluebirdPromise.resolve());
 
-    const app_get = sinon.stub();
-    app_get.withArgs("ldap").returns(ldapMock);
-    app_get.withArgs("configuration").returns(configuration);
-    app_get.withArgs("logger").returns(winston);
-    app_get.withArgs("authentication regulator").returns(regulator);
-    app_get.withArgs("access controller").returns(accessController);
-
     req = {
       app: {
-        get: app_get
       },
       body: {
         username: "username",
@@ -68,6 +61,14 @@ describe("test the first factor validation route", function () {
         host: "home.example.com"
       }
     };
+
+    const mocks = ServerVariablesMock.mock(req.app);
+    mocks.ldap = ldapMock;
+    mocks.config = configuration;
+    mocks.logger = winston;
+    mocks.regulator = regulator;
+    mocks.accessController = accessController;
+
     res = ExpressMock.ResponseMock();
   });
 

@@ -7,6 +7,7 @@ import BluebirdPromise = require("bluebird");
 
 import ExpressMock = require("../../../../mocks/express");
 import UserDataStoreMock = require("../../../../mocks/UserDataStore");
+import ServerVariablesMock = require("../../../../mocks/ServerVariablesMock");
 
 describe("test totp register", function () {
   let req: ExpressMock.RequestMock;
@@ -16,8 +17,8 @@ describe("test totp register", function () {
 
   beforeEach(function () {
     req = ExpressMock.RequestMock();
-    req.app.get = sinon.stub();
-    req.app.get.withArgs("logger").returns(winston);
+    const mocks = ServerVariablesMock.mock(req.app);
+    mocks.logger = winston;
     req.session = {};
     req.session.auth_session = {};
     req.session.auth_session.userid = "user";
@@ -37,7 +38,7 @@ describe("test totp register", function () {
     userDataStore.issue_identity_check_token = sinon.stub().returns(BluebirdPromise.resolve({}));
     userDataStore.consume_identity_check_token = sinon.stub().returns(BluebirdPromise.resolve({}));
     userDataStore.set_totp_secret = sinon.stub().returns(BluebirdPromise.resolve({}));
-    req.app.get.withArgs("user data store").returns(userDataStore);
+    mocks.userDataStore = userDataStore;
 
     res = ExpressMock.ResponseMock();
   });

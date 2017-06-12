@@ -10,6 +10,7 @@ import UserDataStore from "./UserDataStore";
 import { Winston } from "../../types/Dependencies";
 import express = require("express");
 import ErrorReplies = require("./ErrorReplies");
+import ServerVariables = require("./ServerVariables");
 
 import Identity = require("../../types/Identity");
 import { IdentityValidationRequestContent } from "./UserDataStore";
@@ -61,8 +62,8 @@ function checkIdentityToken(req: express.Request, identityToken: string): Bluebi
 
 export function get_finish_validation(handler: IdentityValidable): express.RequestHandler {
   return function (req: express.Request, res: express.Response): BluebirdPromise<void> {
-    const logger = req.app.get("logger");
-    const userDataStore = req.app.get("user data store");
+    const logger = ServerVariables.getLogger(req.app);
+    const userDataStore = ServerVariables.getUserDataStore(req.app);
 
     const identityToken = objectPath.get<express.Request, string>(req, "query.identity_token");
     logger.info("GET identity_check: identity token provided is %s", identityToken);
@@ -91,9 +92,9 @@ export function get_finish_validation(handler: IdentityValidable): express.Reque
 
 export function get_start_validation(handler: IdentityValidable, postValidationEndpoint: string): express.RequestHandler {
   return function (req: express.Request, res: express.Response): BluebirdPromise<void> {
-    const logger: Winston = req.app.get("logger");
-    const notifier = req.app.get("notifier");
-    const userDataStore: UserDataStore = req.app.get("user data store");
+    const logger = ServerVariables.getLogger(req.app);
+    const notifier = ServerVariables.getNotifier(req.app);
+    const userDataStore = ServerVariables.getUserDataStore(req.app);
     let identity: Identity.Identity;
     logger.info("Identity Validation: Start identity validation");
 
