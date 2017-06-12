@@ -7,6 +7,7 @@ import { IdentityValidable } from "../../../../IdentityCheckMiddleware";
 import { Identity } from "../../../../../../types/Identity";
 import { PRE_VALIDATION_TEMPLATE } from "../../../../IdentityCheckPreValidationTemplate";
 import FirstFactorValidator = require("../../../../FirstFactorValidator");
+import AuthenticationSession = require("../../../../AuthenticationSession");
 
 const CHALLENGE = "u2f-register";
 const MAIL_SUBJECT = "Register your U2F device";
@@ -20,8 +21,9 @@ export default class RegistrationHandler implements IdentityValidable {
   }
 
   private retrieveIdentity(req: express.Request) {
-    const userid = objectPath.get<express.Request, string>(req, "session.auth_session.userid");
-    const email = objectPath.get<express.Request, string>(req, "session.auth_session.email");
+    const authSession = AuthenticationSession.get(req);
+    const userid = authSession.userid;
+    const email = authSession.email;
 
     if (!(userid && email)) {
       return BluebirdPromise.reject("User ID or email is missing");

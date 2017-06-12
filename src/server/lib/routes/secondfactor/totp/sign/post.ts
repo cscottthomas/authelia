@@ -9,6 +9,7 @@ import Endpoints = require("../../../../../endpoints");
 import redirect from "../../redirect";
 import ErrorReplies = require("../../../../ErrorReplies");
 import ServerVariables = require("./../../../../ServerVariables");
+import AuthenticationSession = require("../../../../AuthenticationSession");
 
 const UNAUTHORIZED_MESSAGE = "Unauthorized access";
 
@@ -16,7 +17,8 @@ export default FirstFactorBlocker(handler);
 
 export function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
   const logger = ServerVariables.getLogger(req.app);
-  const userid = objectPath.get<express.Request, string>(req, "session.auth_session.userid");
+  const authSession = AuthenticationSession.get(req);
+  const userid = authSession.userid;
   logger.info("POST 2ndfactor totp: Initiate TOTP validation for user %s", userid);
 
   const token = req.body.token;
@@ -31,7 +33,7 @@ export function handler(req: express.Request, res: express.Response): BluebirdPr
     })
     .then(function () {
       logger.debug("POST 2ndfactor totp: TOTP validation succeeded");
-      objectPath.set(req, "session.auth_session.second_factor", true);
+      authSession.second_factor = true;
       redirect(req, res);
       return BluebirdPromise.resolve();
     })

@@ -5,6 +5,7 @@ import assert = require("assert");
 import winston = require("winston");
 
 import exceptions = require("../../../../../../src/server/lib/Exceptions");
+import AuthenticationSession = require("../../../../../../src/server/lib/AuthenticationSession");
 import SignPost = require("../../../../../../src/server/lib/routes/secondfactor/totp/sign/post");
 
 import ExpressMock = require("../../../../mocks/express");
@@ -17,6 +18,7 @@ describe("test totp route", function () {
   let res: ExpressMock.ResponseMock;
   let totpValidator: TOTPValidatorMock.TOTPValidatorMock;
   let userDataStore: UserDataStoreMock.UserDataStore;
+  let authSession: AuthenticationSession.AuthenticationSession;
 
   beforeEach(function () {
     const app_get = sinon.stub();
@@ -26,14 +28,14 @@ describe("test totp route", function () {
       body: {
         token: "abc"
       },
-      session: {
-        auth_session: {
-          userid: "user",
-          first_factor: true,
-          second_factor: false
-        }
-      }
+      session: {}
     };
+    AuthenticationSession.reset(req as any);
+    authSession = AuthenticationSession.get(req as any);
+    authSession.userid = "user";
+    authSession.first_factor = true;
+    authSession.second_factor = false;
+
     const mocks = ServerVariablesMock.mock(req.app);
     res = ExpressMock.ResponseMock();
 
@@ -61,7 +63,7 @@ describe("test totp route", function () {
     totpValidator.validate.returns(BluebirdPromise.resolve("ok"));
     return SignPost.default(req as any, res as any)
       .then(function () {
-        assert.equal(true, req.session.auth_session.second_factor);
+        assert.equal(true, authSession.second_factor);
         return BluebirdPromise.resolve();
       });
   });
@@ -71,7 +73,7 @@ describe("test totp route", function () {
     SignPost.default(req as any, res as any)
       .then(function () { return BluebirdPromise.reject(new Error("It should fail")); })
       .catch(function () {
-        assert.equal(false, req.session.auth_session.second_factor);
+        assert.equal(false, authSession.second_factor);
         assert.equal(401, res.status.getCall(0).args[0]);
         return BluebirdPromise.resolve();
       });

@@ -11,6 +11,7 @@ import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import redirect from "../../redirect";
 import ErrorReplies = require("../../../../ErrorReplies");
 import ServerVariables = require("../../../../ServerVariables");
+import AuthenticationSession = require("../../../../AuthenticationSession");
 
 export default FirstFactorBlocker(handler);
 
@@ -18,20 +19,21 @@ export default FirstFactorBlocker(handler);
 export function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
     const logger = ServerVariables.getLogger(req.app);
     const userDataStore = ServerVariables.getUserDataStore(req.app);
+    const authSession = AuthenticationSession.get(req);
 
-    if (!objectPath.has(req, "session.auth_session.sign_request")) {
+    if (!authSession.sign_request) {
         const err = new Error("No sign request");
         ErrorReplies.replyWithError401(res, logger)(err);
         return BluebirdPromise.reject(err);
     }
 
-    const userid = req.session.auth_session.userid;
+    const userid = authSession.userid;
     const appid = u2f_common.extract_app_id(req);
     return userDataStore.get_u2f_meta(userid, appid)
         .then(function (doc: U2FRegistrationDocument): BluebirdPromise<U2f.SignatureResult | U2f.Error> {
             const appid = u2f_common.extract_app_id(req);
             const u2f = ServerVariables.getU2F(req.app);
-            const signRequest: U2f.Request = req.session.auth_session.sign_request;
+            const signRequest = authSession.sign_request;
             const signData: U2f.SignatureData = req.body;
             logger.info("U2F sign: Finish authentication");
             return BluebirdPromise.resolve(u2f.checkSignature(signRequest, signData, doc.publicKey));
@@ -40,7 +42,7 @@ export function handler(req: express.Request, res: express.Response): BluebirdPr
             if (objectPath.has(result, "errorCode"))
                 return BluebirdPromise.reject(new Error("Error while signing"));
             logger.info("U2F sign: Authentication successful");
-            req.session.auth_session.second_factor = true;
+            authSession.second_factor = true;
             redirect(req, res);
             return BluebirdPromise.resolve();
         })

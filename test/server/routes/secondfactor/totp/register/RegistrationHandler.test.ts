@@ -2,6 +2,7 @@ import sinon = require("sinon");
 import winston = require("winston");
 import RegistrationHandler from "../../../../../../src/server/lib/routes/secondfactor/totp/identity/RegistrationHandler";
 import { Identity } from "../../../../../../src/types/Identity";
+import AuthenticationSession = require("../../../../../../src/server/lib/AuthenticationSession");
 import assert = require("assert");
 import BluebirdPromise = require("bluebird");
 
@@ -14,17 +15,21 @@ describe("test totp register", function () {
   let res: ExpressMock.ResponseMock;
   let userDataStore: UserDataStoreMock.UserDataStore;
   const registrationHandler: RegistrationHandler = new RegistrationHandler();
+  let authSession: AuthenticationSession.AuthenticationSession;
 
   beforeEach(function () {
     req = ExpressMock.RequestMock();
     const mocks = ServerVariablesMock.mock(req.app);
     mocks.logger = winston;
     req.session = {};
-    req.session.auth_session = {};
-    req.session.auth_session.userid = "user";
-    req.session.auth_session.email = "user@example.com";
-    req.session.auth_session.first_factor = true;
-    req.session.auth_session.second_factor = false;
+
+    AuthenticationSession.reset(req as any);
+    authSession = AuthenticationSession.get(req as any);
+    authSession.userid = "user";
+    authSession.email = "user@example.com";
+    authSession.first_factor = true;
+    authSession.second_factor = false;
+
     req.headers = {};
     req.headers.host = "localhost";
 
@@ -47,7 +52,7 @@ describe("test totp register", function () {
 
   function test_registration_check() {
     it("should fail if first_factor has not been passed", function () {
-      req.session.auth_session.first_factor = false;
+      authSession.first_factor = false;
       return registrationHandler.preValidationInit(req as any)
         .then(function () { return BluebirdPromise.reject(new Error("It should fail")); })
         .catch(function (err: Error) {
@@ -56,8 +61,8 @@ describe("test totp register", function () {
     });
 
     it("should fail if userid is missing", function (done) {
-      req.session.auth_session.first_factor = false;
-      req.session.auth_session.userid = undefined;
+      authSession.first_factor = false;
+      authSession.userid = undefined;
 
       registrationHandler.preValidationInit(req as any)
         .catch(function (err: Error) {
@@ -66,8 +71,8 @@ describe("test totp register", function () {
     });
 
     it("should fail if email is missing", function (done) {
-      req.session.auth_session.first_factor = false;
-      req.session.auth_session.email = undefined;
+      authSession.first_factor = false;
+      authSession.email = undefined;
 
       registrationHandler.preValidationInit(req as any)
         .catch(function (err: Error) {

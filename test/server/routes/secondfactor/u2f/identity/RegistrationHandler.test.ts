@@ -5,6 +5,7 @@ import BluebirdPromise = require("bluebird");
 
 import { Identity } from "../../../../../../src/types/Identity";
 import RegistrationHandler from "../../../../../../src/server/lib/routes/secondfactor/u2f/identity/RegistrationHandler";
+import AuthenticationSession = require("../../../../../../src/server/lib/AuthenticationSession");
 
 import ExpressMock = require("../../../../mocks/express");
 import UserDataStoreMock = require("../../../../mocks/UserDataStore");
@@ -14,6 +15,7 @@ describe("test register handler", function () {
   let req: ExpressMock.RequestMock;
   let res: ExpressMock.ResponseMock;
   let userDataStore: UserDataStoreMock.UserDataStore;
+  let authSession: AuthenticationSession.AuthenticationSession;
 
   beforeEach(function () {
     req = ExpressMock.RequestMock;
@@ -21,11 +23,12 @@ describe("test register handler", function () {
     const mocks = ServerVariablesMock.mock(req.app);
     mocks.logger = winston;
     req.session = {};
-    req.session.auth_session = {};
-    req.session.auth_session.userid = "user";
-    req.session.auth_session.email = "user@example.com";
-    req.session.auth_session.first_factor = true;
-    req.session.auth_session.second_factor = false;
+    AuthenticationSession.reset(req as any);
+    authSession = AuthenticationSession.get(req as any);
+    authSession.userid = "user";
+    authSession.email = "user@example.com";
+    authSession.first_factor = true;
+    authSession.second_factor = false;
     req.headers = {};
     req.headers.host = "localhost";
 
@@ -50,7 +53,7 @@ describe("test register handler", function () {
 
   function test_registration_check() {
     it("should fail if first_factor has not been passed", function () {
-      req.session.auth_session.first_factor = false;
+      authSession.first_factor = false;
       return new RegistrationHandler().preValidationInit(req as any)
         .then(function () { return BluebirdPromise.reject(new Error("It should fail")); })
         .catch(function (err: Error) {
@@ -59,8 +62,8 @@ describe("test register handler", function () {
     });
 
     it("should fail if userid is missing", function (done) {
-      req.session.auth_session.first_factor = false;
-      req.session.auth_session.userid = undefined;
+      authSession.first_factor = false;
+      authSession.userid = undefined;
 
       new RegistrationHandler().preValidationInit(req as any)
         .catch(function (err: Error) {
@@ -69,8 +72,8 @@ describe("test register handler", function () {
     });
 
     it("should fail if email is missing", function (done) {
-      req.session.auth_session.first_factor = false;
-      req.session.auth_session.email = undefined;
+      authSession.first_factor = false;
+      authSession.email = undefined;
 
       new RegistrationHandler().preValidationInit(req as any)
         .catch(function (err: Error) {

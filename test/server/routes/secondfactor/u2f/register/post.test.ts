@@ -3,6 +3,7 @@ import sinon = require("sinon");
 import BluebirdPromise = require("bluebird");
 import assert = require("assert");
 import U2FRegisterPost = require("../../../../../../src/server/lib/routes/secondfactor/u2f/register/post");
+import AuthenticationSession = require("../../../../../../src/server/lib/AuthenticationSession");
 import winston = require("winston");
 
 import ExpressMock = require("../../../../mocks/express");
@@ -16,6 +17,7 @@ describe("test u2f routes: register", function () {
   let res: ExpressMock.ResponseMock;
   let userDataStore: UserDataStoreMock.UserDataStore;
   let mocks: ServerVariablesMock.ServerVariablesMock;
+  let authSession: AuthenticationSession.AuthenticationSession;
 
   beforeEach(function () {
     req = ExpressMock.RequestMock();
@@ -24,13 +26,16 @@ describe("test u2f routes: register", function () {
     mocks.logger = winston;
 
     req.session = {};
-    req.session.auth_session = {};
-    req.session.auth_session.userid = "user";
-    req.session.auth_session.first_factor = true;
-    req.session.auth_session.second_factor = false;
-    req.session.auth_session.identity_check = {};
-    req.session.auth_session.identity_check.challenge = "u2f-register";
-    req.session.auth_session.register_request = {};
+    AuthenticationSession.reset(req as any);
+    authSession = AuthenticationSession.get(req as any);
+    authSession.userid = "user";
+    authSession.first_factor = true;
+    authSession.second_factor = false;
+    authSession.identity_check = {
+      challenge: "u2f-register",
+      userid: "user"
+    };
+
     req.headers = {};
     req.headers.host = "localhost";
 
@@ -62,12 +67,17 @@ describe("test u2f routes: register", function () {
       const u2f_mock = U2FMock.U2FMock();
       u2f_mock.checkRegistration.returns(BluebirdPromise.resolve(expectedStatus));
 
-      req.session.auth_session.register_request = {};
+      authSession.register_request = {
+        appId: "app",
+        challenge: "challenge",
+        keyHandle: "key",
+        version: "U2F_V2"
+      };
       mocks.u2f = u2f_mock;
       return U2FRegisterPost.default(req as any, res as any)
         .then(function () {
           assert.equal("user", userDataStore.set_u2f_meta.getCall(0).args[0]);
-          assert.equal(req.session.auth_session.identity_check, undefined);
+          assert.equal(authSession.identity_check, undefined);
         });
     });
 
@@ -76,7 +86,12 @@ describe("test u2f routes: register", function () {
       const u2f_mock = U2FMock.U2FMock();
       u2f_mock.checkRegistration.returns({ errorCode: 500 });
 
-      req.session.auth_session.register_request = "abc";
+      authSession.register_request = {
+        appId: "app",
+        challenge: "challenge",
+        keyHandle: "key",
+        version: "U2F_V2"
+      };
       mocks.u2f = u2f_mock;
       return U2FRegisterPost.default(req as any, res as any)
         .then(function () { return BluebirdPromise.reject(new Error("It should fail")); })
@@ -91,7 +106,7 @@ describe("test u2f routes: register", function () {
       const u2f_mock = U2FMock.U2FMock();
       u2f_mock.checkRegistration.returns(BluebirdPromise.resolve());
 
-      req.session.auth_session.register_request = undefined;
+      authSession.register_request = undefined;
       mocks.u2f = u2f_mock;
       return U2FRegisterPost.default(req as any, res as any)
         .then(function () { return BluebirdPromise.reject(new Error("It should fail")); })
@@ -106,7 +121,7 @@ describe("test u2f routes: register", function () {
       const u2f_mock = U2FMock.U2FMock();
       u2f_mock.checkRegistration.returns(BluebirdPromise.resolve());
 
-      req.session.auth_session.register_request = undefined;
+      authSession.register_request = undefined;
       mocks.u2f = u2f_mock;
       return U2FRegisterPost.default(req as any, res as any)
         .then(function () { return BluebirdPromise.reject(new Error("It should fail")); })
@@ -117,7 +132,7 @@ describe("test u2f routes: register", function () {
     });
 
     it("should return forbidden error when identity has not been verified", function () {
-      req.session.auth_session.identity_check = undefined;
+      authSession.identity_check = undefined;
       return U2FRegisterPost.default(req as any, res as any)
         .then(function () { return BluebirdPromise.reject(new Error("It should fail")); })
         .catch(function () {

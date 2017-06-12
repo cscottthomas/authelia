@@ -4,17 +4,20 @@ import BluebirdPromise = require("bluebird");
 import objectPath = require("object-path");
 import exceptions = require("../../../Exceptions");
 import ServerVariables = require("../../../ServerVariables");
+import AuthenticationSession = require("../../../AuthenticationSession");
+import ErrorReplies = require("../../../ErrorReplies");
 
 import Constants = require("./../constants");
 
-export default function (req: express.Request, res: express.Response) {
+export default function (req: express.Request, res: express.Response): BluebirdPromise<void> {
     const logger = ServerVariables.getLogger(req.app);
     const ldap = ServerVariables.getLdapClient(req.app);
+    const authSession = AuthenticationSession.get(req);
 
     const new_password = objectPath.get<express.Request, string>(req, "body.password");
-    const userid = objectPath.get<express.Request, string>(req, "session.auth_session.identity_check.userid");
 
-    const challenge = objectPath.get(req, "session.auth_session.identity_check.challenge");
+    const userid = authSession.identity_check.userid;
+    const challenge = authSession.identity_check.challenge;
     if (challenge != Constants.CHALLENGE) {
         res.status(403);
         res.send();
@@ -23,16 +26,13 @@ export default function (req: express.Request, res: express.Response) {
 
     logger.info("POST reset-password: User %s wants to reset his/her password", userid);
 
-    ldap.update_password(userid, new_password)
+    return ldap.update_password(userid, new_password)
         .then(function () {
-            logger.info("POST reset-password: Password reset for user %s", userid);
-            objectPath.set(req, "session.auth_session", undefined);
+            logger.info("POST reset-password: Password reset for user '%s'", userid);
+            AuthenticationSession.reset(req);
             res.status(204);
             res.send();
+            return BluebirdPromise.resolve();
         })
-        .catch(function (err: Error) {
-            logger.error("POST reset-password: Error while resetting the password of user %s. %s", userid, err);
-            res.status(500);
-            res.send();
-        });
+        .catch(ErrorReplies.replyWithError500(res, logger));
 }

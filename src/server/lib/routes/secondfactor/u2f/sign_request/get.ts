@@ -11,6 +11,7 @@ import { SignMessage } from "./SignMessage";
 import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import ErrorReplies = require("../../../../ErrorReplies");
 import ServerVariables = require("../../../../ServerVariables");
+import AuthenticationSession = require("../../../../AuthenticationSession");
 
 export default FirstFactorBlocker(handler);
 
@@ -18,8 +19,9 @@ export default FirstFactorBlocker(handler);
 export function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
     const logger = ServerVariables.getLogger(req.app);
     const userDataStore = ServerVariables.getUserDataStore(req.app);
+    const authSession = AuthenticationSession.get(req);
 
-    const userid = req.session.auth_session.userid;
+    const userid = authSession.userid;
     const appid = u2f_common.extract_app_id(req);
     return userDataStore.get_u2f_meta(userid, appid)
         .then(function (doc: U2FRegistrationDocument): BluebirdPromise<SignMessage> {
@@ -41,7 +43,7 @@ export function handler(req: express.Request, res: express.Response): BluebirdPr
         .then(function (authenticationMessage: SignMessage) {
             logger.info("U2F sign_request: Store authentication request and reply");
             logger.debug("U2F sign_request: authenticationRequest=%s", authenticationMessage);
-            req.session.auth_session.sign_request = authenticationMessage.request;
+            authSession.sign_request = authenticationMessage.request;
             res.json(authenticationMessage);
             return BluebirdPromise.resolve();
         })

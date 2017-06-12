@@ -1,6 +1,7 @@
 
 import sinon = require("sinon");
 import IdentityValidator = require("../../src/server/lib/IdentityCheckMiddleware");
+import AuthenticationSession = require("../../src/server/lib/AuthenticationSession");
 import exceptions = require("../../src/server/lib/Exceptions");
 import assert = require("assert");
 import winston = require("winston");
@@ -42,7 +43,7 @@ describe("test identity check process", function () {
 
     req.headers = {};
     req.session = {};
-    req.session.auth_session = {};
+    req.session = {};
 
     req.query = {};
     req.app = {};
@@ -159,11 +160,13 @@ describe("test identity check process", function () {
       req.query.identity_token = "token";
 
       req.session = {};
+      const authSession = AuthenticationSession.get(req as any);
       const callback = IdentityValidator.get_finish_validation(identityValidable);
       return callback(req as any, res as any, undefined)
         .then(function () { return BluebirdPromise.reject("Should fail"); })
         .catch(function () {
-          assert.equal(req.session.auth_session.identity_check.userid, "user");
+          assert.equal(authSession.identity_check.userid, "user");
+          return BluebirdPromise.resolve();
         });
     });
   }

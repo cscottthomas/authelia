@@ -1,6 +1,7 @@
 
 import PasswordResetFormPost = require("../../../../src/server/lib/routes/password-reset/form/post");
 import LdapClient = require("../../../../src/server/lib/LdapClient");
+import AuthenticationSession = require("../../../../src/server/lib/AuthenticationSession");
 import sinon = require("sinon");
 import winston = require("winston");
 import assert = require("assert");
@@ -17,6 +18,7 @@ describe("test reset password route", function () {
   let user_data_store: UserDataStore;
   let ldap_client: LdapClientMock;
   let configuration: any;
+  let authSession: AuthenticationSession.AuthenticationSession;
 
   beforeEach(function () {
     req = {
@@ -26,18 +28,18 @@ describe("test reset password route", function () {
       app: {
         get: sinon.stub()
       },
-      session: {
-        auth_session: {
-          userid: "user",
-          email: "user@example.com",
-          first_factor: true,
-          second_factor: false
-        }
-      },
+      session: {},
       headers: {
         host: "localhost"
       }
     };
+
+    AuthenticationSession.reset(req as any);
+    authSession = AuthenticationSession.get(req as any);
+    authSession.userid = "user";
+    authSession.email = "user@example.com";
+    authSession.first_factor = true;
+    authSession.second_factor = false;
 
     const options = {
       inMemoryOnly: true
@@ -69,26 +71,31 @@ describe("test reset password route", function () {
   });
 
   describe("test reset password post", () => {
-    it("should update the password and reset auth_session for reauthentication", function (done) {
-      req.session.auth_session.identity_check = {};
-      req.session.auth_session.identity_check.userid = "user";
-      req.session.auth_session.identity_check.challenge = "reset-password";
+    it("should update the password and reset auth_session for reauthentication", function () {
+      authSession.identity_check = {
+        userid: "user",
+        challenge: "reset-password"
+      };
       req.body = {};
       req.body.password = "new-password";
 
       ldap_client.update_password.returns(BluebirdPromise.resolve());
       ldap_client.bind.returns(BluebirdPromise.resolve());
-      res.send = sinon.spy(function () {
-        assert.equal(res.status.getCall(0).args[0], 204);
-        assert.equal(req.session.auth_session, undefined);
-        done();
-      });
-      PasswordResetFormPost.default(req as any, res as any);
+      return PasswordResetFormPost.default(req as any, res as any)
+        .then(function () {
+          const authSession = AuthenticationSession.get(req as any);
+          assert.equal(res.status.getCall(0).args[0], 204);
+          assert.equal(authSession.first_factor, false);
+          assert.equal(authSession.second_factor, false);
+          return BluebirdPromise.resolve();
+        });
     });
 
     it("should fail if identity_challenge does not exist", function (done) {
-      req.session.auth_session.identity_check = {};
-      req.session.auth_session.identity_check.challenge = undefined;
+      authSession.identity_check = {
+        userid: "user",
+        challenge: undefined
+      };
       res.send = sinon.spy(function () {
         assert.equal(res.status.getCall(0).args[0], 403);
         done();
@@ -97,8 +104,10 @@ describe("test reset password route", function () {
     });
 
     it("should fail when ldap fails", function (done) {
-      req.session.auth_session.identity_check = {};
-      req.session.auth_session.identity_check.challenge = "reset-password";
+      authSession.identity_check = {
+        challenge: "reset-password",
+        userid: "user"
+      };
       req.body = {};
       req.body.password = "new-password";
 

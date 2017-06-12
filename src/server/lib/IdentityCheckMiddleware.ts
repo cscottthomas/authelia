@@ -11,6 +11,7 @@ import { Winston } from "../../types/Dependencies";
 import express = require("express");
 import ErrorReplies = require("./ErrorReplies");
 import ServerVariables = require("./ServerVariables");
+import AuthenticationSession = require("./AuthenticationSession");
 
 import Identity = require("../../types/Identity");
 import { IdentityValidationRequestContent } from "./UserDataStore";
@@ -65,6 +66,7 @@ export function get_finish_validation(handler: IdentityValidable): express.Reque
     const logger = ServerVariables.getLogger(req.app);
     const userDataStore = ServerVariables.getUserDataStore(req.app);
 
+    const authSession = AuthenticationSession.get(req);
     const identityToken = objectPath.get<express.Request, string>(req, "query.identity_token");
     logger.info("GET identity_check: identity token provided is %s", identityToken);
 
@@ -76,10 +78,10 @@ export function get_finish_validation(handler: IdentityValidable): express.Reque
         return consume_token(identityToken, userDataStore, logger);
       })
       .then(function (content: IdentityValidationRequestContent) {
-        objectPath.set(req, "session.auth_session.identity_check", {});
-        req.session.auth_session.identity_check.challenge = handler.challenge();
-        req.session.auth_session.identity_check.userid = content.userid;
-
+        authSession.identity_check = {
+          challenge: handler.challenge(),
+          userid: content.userid
+        };
         handler.postValidationResponse(req, res);
         return BluebirdPromise.resolve();
       })

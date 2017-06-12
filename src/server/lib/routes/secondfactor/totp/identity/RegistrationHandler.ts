@@ -10,6 +10,7 @@ import Constants = require("../constants");
 import Endpoints = require("../../../../../endpoints");
 import ErrorReplies = require("../../../../ErrorReplies");
 import ServerVariables = require("../../../../ServerVariables");
+import AuthenticationSession = require("../../../../AuthenticationSession");
 
 import FirstFactorValidator = require("../../../../FirstFactorValidator");
 
@@ -20,8 +21,9 @@ export default class RegistrationHandler implements IdentityValidable {
   }
 
   private retrieveIdentity(req: express.Request): BluebirdPromise<Identity> {
-    const userid = objectPath.get<express.Request, string>(req, "session.auth_session.userid");
-    const email = objectPath.get<express.Request, string>(req, "session.auth_session.email");
+    const authSession = AuthenticationSession.get(req);
+    const userid = authSession.userid;
+    const email = authSession.email;
 
     if (!(userid && email)) {
       return BluebirdPromise.reject(new Error("User ID or email is missing"));
@@ -52,8 +54,10 @@ export default class RegistrationHandler implements IdentityValidable {
 
   postValidationResponse(req: express.Request, res: express.Response) {
     const logger = ServerVariables.getLogger(req.app);
-    const userid = objectPath.get<express.Request, string>(req, "session.auth_session.identity_check.userid");
-    const challenge = objectPath.get<express.Request, string>(req, "session.auth_session.identity_check.challenge");
+    const authSession = AuthenticationSession.get(req);
+
+    const userid = authSession.identity_check.userid;
+    const challenge = authSession.identity_check.challenge;
 
     if (challenge != Constants.CHALLENGE || !userid) {
       res.status(403);

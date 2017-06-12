@@ -3,6 +3,7 @@ import sinon = require("sinon");
 import BluebirdPromise = require("bluebird");
 import assert = require("assert");
 import U2FSignPost = require("../../../../../../src/server/lib/routes/secondfactor/u2f/sign/post");
+import AuthenticationSession = require("../../../../../../src/server/lib/AuthenticationSession");
 import winston = require("winston");
 
 import ExpressMock = require("../../../../mocks/express");
@@ -16,6 +17,7 @@ describe("test u2f routes: sign", function () {
     let res: ExpressMock.ResponseMock;
     let userDataStore: UserDataStoreMock.UserDataStore;
     let mocks: ServerVariablesMock.ServerVariablesMock;
+    let authSession: AuthenticationSession.AuthenticationSession;
 
     beforeEach(function () {
         req = ExpressMock.RequestMock();
@@ -25,13 +27,15 @@ describe("test u2f routes: sign", function () {
         mocks.logger = winston;
 
         req.session = {};
-        req.session.auth_session = {};
-        req.session.auth_session.userid = "user";
-        req.session.auth_session.first_factor = true;
-        req.session.auth_session.second_factor = false;
-        req.session.auth_session.identity_check = {};
-        req.session.auth_session.identity_check.challenge = "u2f-register";
-        req.session.auth_session.register_request = {};
+        AuthenticationSession.reset(req as any);
+        authSession = AuthenticationSession.get(req as any);
+        authSession.userid = "user";
+        authSession.first_factor = true;
+        authSession.second_factor = false;
+        authSession.identity_check = {
+            challenge: "u2f-register",
+            userid: "user"
+        };
         req.headers = {};
         req.headers.host = "localhost";
 
@@ -60,11 +64,16 @@ describe("test u2f routes: sign", function () {
             const u2f_mock = U2FMock.U2FMock();
             u2f_mock.checkSignature.returns(expectedStatus);
 
-            req.session.auth_session.sign_request = {};
+            authSession.sign_request = {
+                appId: "app",
+                challenge: "challenge",
+                keyHandle: "key",
+                version: "U2F_V2"
+            };
             mocks.u2f = u2f_mock;
             return U2FSignPost.default(req as any, res as any)
                 .then(function () {
-                    assert(req.session.auth_session.second_factor);
+                    assert(authSession.second_factor);
                 });
         });
 
@@ -77,7 +86,12 @@ describe("test u2f routes: sign", function () {
             const u2f_mock = U2FMock.U2FMock();
             u2f_mock.checkSignature.returns({ errorCode: 500 });
 
-            req.session.auth_session.sign_request = {};
+            authSession.sign_request = {
+                appId: "app",
+                challenge: "challenge",
+                keyHandle: "key",
+                version: "U2F_V2"
+            };
             mocks.u2f = u2f_mock;
             U2FSignPost.default(req as any, res as any);
         });

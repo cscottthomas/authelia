@@ -1,6 +1,8 @@
 
 import assert = require("assert");
 import VerifyGet = require("../../../../src/server/lib/routes/verify/get");
+import AuthenticationSession = require("../../../../src/server/lib/AuthenticationSession");
+
 import sinon = require("sinon");
 import winston = require("winston");
 import BluebirdPromise = require("bluebird");
@@ -30,20 +32,13 @@ describe("test authentication token verification", function () {
     mocks.accessController = accessController;
   });
 
-  interface AuthenticationSession {
-    first_factor?: boolean;
-    second_factor?: boolean;
-    userid?: string;
-    groups?: string[];
-  }
-
   it("should be already authenticated", function (done) {
     req.session = {};
-    req.session.auth_session = {
-      first_factor: true,
-      second_factor: true,
-      userid: "myuser",
-    } as AuthenticationSession;
+    AuthenticationSession.reset(req as any);
+    const authSession = AuthenticationSession.get(req as any);
+    authSession.first_factor = true;
+    authSession.second_factor = true;
+    authSession.userid = "myuser";
 
     res.send = sinon.spy(function () {
       assert.equal(204, res.status.getCall(0).args[0]);
@@ -54,7 +49,7 @@ describe("test authentication token verification", function () {
   });
 
   describe("given different cases of session", function () {
-    function test_session(auth_session: AuthenticationSession, status_code: number) {
+    function test_session(auth_session: AuthenticationSession.AuthenticationSession, status_code: number) {
       return new BluebirdPromise(function (resolve, reject) {
         req.session = {};
         req.session.auth_session = auth_session;
@@ -68,11 +63,11 @@ describe("test authentication token verification", function () {
       });
     }
 
-    function test_unauthorized(auth_session: AuthenticationSession) {
+    function test_unauthorized(auth_session: AuthenticationSession.AuthenticationSession) {
       return test_session(auth_session, 401);
     }
 
-    function test_authorized(auth_session: AuthenticationSession) {
+    function test_authorized(auth_session: AuthenticationSession.AuthenticationSession) {
       return test_session(auth_session, 204);
     }
 
@@ -80,32 +75,44 @@ describe("test authentication token verification", function () {
       return test_unauthorized({
         userid: "user",
         first_factor: true,
-        second_factor: false
+        second_factor: false,
+        email: undefined,
+        groups: [],
       });
     });
 
     it("should not be authenticated when first factor is missing", function () {
-      return test_unauthorized({ first_factor: false, second_factor: true });
+      return test_unauthorized({
+        userid: "user",
+        first_factor: false,
+        second_factor: true,
+        email: undefined,
+        groups: [],
+      });
     });
 
     it("should not be authenticated when userid is missing", function () {
       return test_unauthorized({
+        userid: undefined,
         first_factor: true,
-        second_factor: true,
-        groups: ["mygroup"],
+        second_factor: false,
+        email: undefined,
+        groups: [],
       });
     });
 
     it("should not be authenticated when first and second factor are missing", function () {
-      return test_unauthorized({ first_factor: false, second_factor: false });
+      return test_unauthorized({
+        userid: "user",
+        first_factor: false,
+        second_factor: false,
+        email: undefined,
+        groups: [],
+       });
     });
 
     it("should not be authenticated when session has not be initiated", function () {
       return test_unauthorized(undefined);
-    });
-
-    it("should not be authenticated when session is partially initialized", function () {
-      return test_unauthorized({ first_factor: true });
     });
 
     it("should not be authenticated when domain is not allowed for user", function () {
@@ -114,11 +121,12 @@ describe("test authentication token verification", function () {
       accessController.isDomainAllowedForUser.returns(false);
       accessController.isDomainAllowedForUser.withArgs("test.example.com", "user", ["group1", "group2"]).returns(true);
 
-      return test_authorized({
+      return test_unauthorized({
         first_factor: true,
         second_factor: true,
         userid: "user",
-        groups: ["group1", "group2"]
+        groups: ["group1", "group2"],
+        email: undefined
       });
     });
   });

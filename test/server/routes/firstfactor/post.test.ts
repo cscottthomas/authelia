@@ -6,6 +6,7 @@ import winston = require("winston");
 
 import FirstFactorPost = require("../../../../src/server/lib/routes/firstfactor/post");
 import exceptions = require("../../../../src/server/lib/Exceptions");
+import AuthenticationSession = require("../../../../src/server/lib/AuthenticationSession");
 import Endpoints = require("../../../../src/server/endpoints");
 
 import AuthenticationRegulatorMock = require("../../mocks/AuthenticationRegulator");
@@ -52,15 +53,13 @@ describe("test the first factor validation route", function () {
         password: "password"
       },
       session: {
-        auth_session: {
-          FirstFactor: false,
-          second_factor: false
-        }
       },
       headers: {
         host: "home.example.com"
       }
     };
+
+    AuthenticationSession.reset(req as any);
 
     const mocks = ServerVariablesMock.mock(req.app);
     mocks.ldap = ldapMock;
@@ -72,15 +71,15 @@ describe("test the first factor validation route", function () {
     res = ExpressMock.ResponseMock();
   });
 
-  it("should redirect client to second factor page", function (done) {
-    res.redirect = sinon.spy(function (url: string) {
-      assert.equal("username", req.session.auth_session.userid);
-      assert.equal(Endpoints.SECOND_FACTOR_GET, url);
-      done();
-    });
+  it("should redirect client to second factor page", function () {
     ldapMock.bind.withArgs("username").returns(BluebirdPromise.resolve());
     ldapMock.get_emails.returns(BluebirdPromise.resolve(emails));
-    FirstFactorPost.default(req as any, res as any);
+    const authSession = AuthenticationSession.get(req as any);
+    return FirstFactorPost.default(req as any, res as any)
+      .then(function () {
+        assert.equal("username", authSession.userid);
+        assert.equal(Endpoints.SECOND_FACTOR_GET, res.redirect.getCall(0).args[0]);
+      });
   });
 
   it("should retrieve email from LDAP", function (done) {
@@ -90,15 +89,15 @@ describe("test the first factor validation route", function () {
     FirstFactorPost.default(req as any, res as any);
   });
 
-  it("should set email as session variables", function (done) {
-    res.redirect = sinon.spy(function () {
-      assert.equal("test_ok@example.com", req.session.auth_session.email);
-      done();
-    });
+  it("should set email as session variables", function () {
     const emails = ["test_ok@example.com"];
+    const authSession = AuthenticationSession.get(req as any);
     ldapMock.bind.returns(BluebirdPromise.resolve());
     ldapMock.get_emails.returns(BluebirdPromise.resolve(emails));
-    FirstFactorPost.default(req as any, res as any);
+    return FirstFactorPost.default(req as any, res as any)
+      .then(function () {
+        assert.equal("test_ok@example.com", authSession.email);
+      });
   });
 
   it("should return status code 401 when LDAP binding throws", function (done) {

@@ -10,15 +10,15 @@ import FirstFactorBlocker from "../../../FirstFactorBlocker";
 import redirect from "../../redirect";
 import ErrorReplies = require("../../../../ErrorReplies");
 import ServerVariables = require("../../../../ServerVariables");
+import AuthenticationSession = require("../../../../AuthenticationSession");
 
 
 export default FirstFactorBlocker(handler);
 
 
 function handler(req: express.Request, res: express.Response): BluebirdPromise<void> {
-    const registrationRequest: U2f.Request =
-        objectPath.get<express.Request, U2f.Request>(req, "session.auth_session.register_request");
-    const challenge: string = objectPath.get<express.Request, string>(req, "session.auth_session.identity_check.challenge");
+    const authSession = AuthenticationSession.get(req);
+    const registrationRequest = authSession.register_request;
 
     if (!registrationRequest) {
         res.status(403);
@@ -26,7 +26,8 @@ function handler(req: express.Request, res: express.Response): BluebirdPromise<v
         return BluebirdPromise.reject(new Error("No registration request"));
     }
 
-    if (!(registrationRequest && challenge == "u2f-register")) {
+    if (!authSession.identity_check
+        || authSession.identity_check.challenge != "u2f-register") {
         res.status(403);
         res.send();
         return BluebirdPromise.reject(new Error("Bad challenge for registration request"));
@@ -35,7 +36,7 @@ function handler(req: express.Request, res: express.Response): BluebirdPromise<v
 
     const userDataStore = ServerVariables.getUserDataStore(req.app);
     const u2f = ServerVariables.getU2F(req.app);
-    const userid: string = req.session.auth_session.userid;
+    const userid = authSession.userid;
     const appid = u2f_common.extract_app_id(req);
     const logger = ServerVariables.getLogger(req.app);
 
@@ -56,7 +57,7 @@ function handler(req: express.Request, res: express.Response): BluebirdPromise<v
             return userDataStore.set_u2f_meta(userid, appid, registrationResult.keyHandle, registrationResult.publicKey);
         })
         .then(function () {
-            objectPath.set(req, "session.auth_session.identity_check", undefined);
+            authSession.identity_check = undefined;
             redirect(req, res);
             return BluebirdPromise.resolve();
         })

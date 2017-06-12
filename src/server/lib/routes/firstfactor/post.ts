@@ -9,6 +9,7 @@ import { LdapClient } from "../../LdapClient";
 import Endpoint = require("../../../endpoints");
 import ErrorReplies = require("../../ErrorReplies");
 import ServerVariables = require("../../ServerVariables");
+import AuthenticationSession = require("../../AuthenticationSession");
 
 export default function (req: express.Request, res: express.Response): BluebirdPromise<void> {
     const username: string = req.body.username;
@@ -26,18 +27,19 @@ export default function (req: express.Request, res: express.Response): BluebirdP
 
     const regulator = ServerVariables.getAuthenticationRegulator(req.app);
     const accessController = ServerVariables.getAccessController(req.app);
+    const authSession = AuthenticationSession.get(req);
 
     logger.info("1st factor: Starting authentication of user \"%s\"", username);
     logger.debug("1st factor: Start bind operation against LDAP");
     logger.debug("1st factor: username=%s", username);
 
-    regulator.regulate(username)
+    return regulator.regulate(username)
         .then(function () {
             return ldap.bind(username, password);
         })
         .then(function () {
-            objectPath.set(req, "session.auth_session.userid", username);
-            objectPath.set(req, "session.auth_session.first_factor", true);
+            authSession.userid = username;
+            authSession.first_factor = true;
             logger.info("1st factor: LDAP binding successful");
             logger.debug("1st factor: Retrieve email from LDAP");
             return BluebirdPromise.join(ldap.get_emails(username), ldap.get_groups(username));
@@ -48,12 +50,13 @@ export default function (req: express.Request, res: express.Response): BluebirdP
 
             if (!emails && emails.length <= 0) throw new Error("No email found");
             logger.debug("1st factor: Retrieved email are %s", emails);
-            objectPath.set(req, "session.auth_session.email", emails[0]);
-            objectPath.set(req, "session.auth_session.groups", groups);
+            authSession.email = emails[0];
+            authSession.groups = groups;
 
             regulator.mark(username, true);
             logger.debug("1st factor: Redirect to  %s", Endpoint.SECOND_FACTOR_GET);
             res.redirect(Endpoint.SECOND_FACTOR_GET);
+            return BluebirdPromise.resolve();
         })
         .catch(exceptions.LdapSearchError, ErrorReplies.replyWithError500(res, logger))
         .catch(exceptions.LdapBindError, function (err: Error) {
